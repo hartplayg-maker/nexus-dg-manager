@@ -105,46 +105,6 @@ function updateCardPreview(data) {
     DOM.cardProgress.textContent = `${Math.round((data.completed / data.total) * 100)}%`;
 }
 
-async function generateCardImage() {
-    const cardElement = document.getElementById('card-content');
-    
-    try {
-        // 🔥 CONFIGURAÇÃO CORRIGIDA
-        const canvas = await html2canvas(cardElement, {
-            scale: 2,
-            backgroundColor: '#0a0a1a',
-            allowTaint: false,
-            useCORS: true,
-            logging: false,
-            width: 500,
-            height: cardElement.scrollHeight,
-            windowWidth: 500,
-            onclone: function(document) {
-                // Garante que o card tenha o fundo correto
-                const card = document.getElementById('card-content');
-                if (card) {
-                    card.style.background = '#0a0a1a';
-                }
-            }
-        });
-        
-        // 🔥 CONVERTE PARA PNG COM QUALIDADE
-        const imageData = canvas.toDataURL('image/png', 1.0);
-        
-        // 🔥 VERIFICA SE A IMAGEM FOI GERADA
-        if (!imageData || imageData.length < 1000) {
-            throw new Error('Imagem gerada está vazia');
-        }
-        
-        console.log('✅ Imagem gerada com sucesso! Tamanho:', imageData.length);
-        return imageData;
-        
-    } catch (error) {
-        console.error('Erro ao gerar imagem:', error);
-        throw new Error('Falha ao gerar imagem do card. Tente novamente.');
-    }
-}
-
 function getSelectedDGs() {
     const checked = document.querySelectorAll('.dg-item input[type="checkbox"]:checked');
     return Array.from(checked).map(cb => cb.value);
@@ -199,13 +159,7 @@ function resetForm() {
     DOM.tamer.focus();
 }
 
-async function sendToDiscord(data, imageData) {
-    // 🔥 VERIFICA SE A IMAGEM É VÁLIDA
-    if (!imageData || imageData.length < 1000) {
-        console.warn('⚠️ Imagem muito pequena ou vazia:', imageData?.length);
-        // Continua mesmo sem imagem
-    }
-    
+async function sendToDiscord(data) {
     const response = await fetch('/.netlify/functions/discord', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -216,8 +170,7 @@ async function sendToDiscord(data, imageData) {
             date: data.date,
             time: data.time,
             completed: data.completed,
-            total: data.total,
-            image: imageData // 🔥 ENVIA A IMAGEM
+            total: data.total
         })
     });
     
@@ -235,8 +188,7 @@ async function handleSubmit() {
     try {
         const data = buildCardData();
         updateCardPreview(data);
-        const imageData = await generateCardImage();
-        await sendToDiscord(data, imageData);
+        await sendToDiscord(data);
         showMessage('✅ Relatório enviado com sucesso para o Discord!', 'success');
     } catch (error) {
         console.error('Error:', error);
