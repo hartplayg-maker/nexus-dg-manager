@@ -1,0 +1,10 @@
+{
+  "name": "nexus-dg-manager",
+  "version": "2.0.0",
+  "description": "Sistema de gerenciamento de DGs para guild Nexus",
+  "main": "index.html",
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "form-data": "^4.0.0"
+  }
+}
