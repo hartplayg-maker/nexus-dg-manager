@@ -1,5 +1,4 @@
 const fetch = require('node-fetch');
-const FormData = require('form-data');
 
 exports.handler = async function(event, context) {
     const headers = {
@@ -9,67 +8,32 @@ exports.handler = async function(event, context) {
     };
 
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers,
-            body: ''
-        };
+        return { statusCode: 200, headers, body: '' };
     }
 
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ error: 'Método não permitido' })
-        };
+        return { statusCode: 405, headers, body: JSON.stringify({ error: 'Método não permitido' }) };
     }
 
     try {
         if (!event.body) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Corpo da requisição vazio' })
-            };
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Corpo da requisição vazio' }) };
         }
 
-        let data;
-        try {
-            data = JSON.parse(event.body);
-        } catch (parseError) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'JSON inválido' })
-            };
-        }
-
-        const { tamer, selected, pending, date, time, completed, total, image } = data;
+        const data = JSON.parse(event.body);
+        const { tamer, selected, pending, date, time, completed, total } = data;
 
         if (!tamer || !tamer.trim()) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Nome do Tamer é obrigatório' })
-            };
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome do Tamer é obrigatório' }) };
         }
 
-        if (!selected || !Array.isArray(selected) || selected.length === 0) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Selecione pelo menos uma DG' })
-            };
+        if (!selected || selected.length === 0) {
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Selecione pelo menos uma DG' }) };
         }
 
         const webhookURL = process.env.DISCORD_WEBHOOK_URL;
         if (!webhookURL) {
-            console.error('DISCORD_WEBHOOK_URL não configurada');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ error: 'Webhook não configurado no servidor' })
-            };
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Webhook não configurado' }) };
         }
 
         const progress = Math.round((completed / total) * 100);
@@ -110,82 +74,34 @@ exports.handler = async function(event, context) {
             embeds: [embed]
         };
 
-        // =========================================
-        // 🔥 PARTE CORRIGIDA - ENVIO DA IMAGEM
-        // =========================================
-// 🔥 PARTE CORRIGIDA PARA ENVIAR IMAGEM
-if (image) {
-    try {
-        // Remove o prefixo "data:image/png;base64," se existir
-        let base64Data = image;
-        if (image.includes('base64,')) {
-            base64Data = image.split('base64,')[1];
-        }
-        
-        // 🔥 CRIA O BUFFER CORRETAMENTE
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        // 🔥 VERIFICA SE O BUFFER NÃO ESTÁ VAZIO
-        if (imageBuffer.length < 100) {
-            console.warn('⚠️ Buffer da imagem muito pequeno:', imageBuffer.length);
-        } else {
-            console.log('📸 Tamanho da imagem:', imageBuffer.length, 'bytes');
-            
-            // 🔥 ADICIONA AO FORMDATA
-            form.append('file', imageBuffer, {
-                filename: `nexus-dg-${tamer.trim()}-${Date.now()}.png`,
-                contentType: 'image/png'
-            });
-        }
-    } catch (imageError) {
-        console.error('❌ Erro ao processar imagem:', imageError);
-        // Continua mesmo sem imagem
-    }
-}
-
-        // 3. Envia para o Discord
-        console.log('📤 Enviando para o Discord...');
-        console.log('📊 Dados:', { tamer, completed, total });
-        
         const response = await fetch(webhookURL, {
             method: 'POST',
-            body: form,
-            headers: form.getHeaders()
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Erro no Discord:', response.status, errorText);
-            
+            console.error('Erro no Discord:', errorText);
             return {
                 statusCode: response.status,
                 headers,
-                body: JSON.stringify({ 
-                    error: `Erro no Discord: ${response.status}`,
-                    details: errorText
-                })
+                body: JSON.stringify({ error: `Erro no Discord: ${response.status}` })
             };
         }
 
-        console.log('✅ Enviado com sucesso!');
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ 
-                success: true, 
-                message: 'Relatório enviado com sucesso!' 
-            })
+            body: JSON.stringify({ success: true, message: 'Relatório enviado com sucesso!' })
         };
 
     } catch (error) {
-        console.error('❌ Erro na função:', error);
+        console.error('Erro:', error);
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-                error: 'Erro interno ao processar requisição',
-                details: error.message
-            })
+            body: JSON.stringify({ error: 'Erro interno', details: error.message })
         };
     }
 };
