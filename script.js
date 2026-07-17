@@ -107,7 +107,9 @@ function updateCardPreview(data) {
 
 async function generateCardImage() {
     const cardElement = document.getElementById('card-content');
+    
     try {
+        // 🔥 CONFIGURAÇÃO CORRIGIDA
         const canvas = await html2canvas(cardElement, {
             scale: 2,
             backgroundColor: '#0a0a1a',
@@ -116,11 +118,29 @@ async function generateCardImage() {
             logging: false,
             width: 500,
             height: cardElement.scrollHeight,
-            windowWidth: 500
+            windowWidth: 500,
+            onclone: function(document) {
+                // Garante que o card tenha o fundo correto
+                const card = document.getElementById('card-content');
+                if (card) {
+                    card.style.background = '#0a0a1a';
+                }
+            }
         });
-        return canvas.toDataURL('image/png');
+        
+        // 🔥 CONVERTE PARA PNG COM QUALIDADE
+        const imageData = canvas.toDataURL('image/png', 1.0);
+        
+        // 🔥 VERIFICA SE A IMAGEM FOI GERADA
+        if (!imageData || imageData.length < 1000) {
+            throw new Error('Imagem gerada está vazia');
+        }
+        
+        console.log('✅ Imagem gerada com sucesso! Tamanho:', imageData.length);
+        return imageData;
+        
     } catch (error) {
-        console.error('Error generating card image:', error);
+        console.error('Erro ao gerar imagem:', error);
         throw new Error('Falha ao gerar imagem do card. Tente novamente.');
     }
 }
@@ -180,15 +200,32 @@ function resetForm() {
 }
 
 async function sendToDiscord(data, imageData) {
+    // 🔥 VERIFICA SE A IMAGEM É VÁLIDA
+    if (!imageData || imageData.length < 1000) {
+        console.warn('⚠️ Imagem muito pequena ou vazia:', imageData?.length);
+        // Continua mesmo sem imagem
+    }
+    
     const response = await fetch('/.netlify/functions/discord', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, image: imageData })
+        body: JSON.stringify({
+            tamer: data.tamer,
+            selected: data.selected,
+            pending: data.pending,
+            date: data.date,
+            time: data.time,
+            completed: data.completed,
+            total: data.total,
+            image: imageData // 🔥 ENVIA A IMAGEM
+        })
     });
+    
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Erro ao enviar para o Discord.');
     }
+    
     return await response.json();
 }
 
