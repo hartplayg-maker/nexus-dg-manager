@@ -8,7 +8,6 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 
-    // Responde requisições OPTIONS (CORS)
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -17,7 +16,6 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Apenas POST é permitido
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -27,7 +25,6 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        // Verifica se o body existe
         if (!event.body) {
             return {
                 statusCode: 400,
@@ -47,9 +44,8 @@ exports.handler = async function(event, context) {
             };
         }
 
-        const { tamer, selected, pending, date, time, completed, total, pendingCount, image } = data;
+        const { tamer, selected, pending, date, time, completed, total, image } = data;
 
-        // Validações
         if (!tamer || !tamer.trim()) {
             return {
                 statusCode: 400,
@@ -66,15 +62,6 @@ exports.handler = async function(event, context) {
             };
         }
 
-        if (!image) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Imagem do card é obrigatória' })
-            };
-        }
-
-        // Webhook URL
         const webhookURL = process.env.DISCORD_WEBHOOK_URL;
         if (!webhookURL) {
             console.error('DISCORD_WEBHOOK_URL não configurada');
@@ -85,10 +72,8 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Calcular progresso
         const progress = Math.round((completed / total) * 100);
 
-        // Construir embed
         const embed = {
             title: `📊 Relatório de DGs - ${tamer.trim()}`,
             color: 0x00d4ff,
@@ -120,34 +105,46 @@ exports.handler = async function(event, context) {
             timestamp: new Date().toISOString()
         };
 
-        // Payload do Discord
         const payload = {
             content: `📢 **${tamer.trim()}** registrou suas DGs diárias!`,
             embeds: [embed]
         };
 
-        // Criar FormData para enviar a imagem
+        // =========================================
+        // 🔥 PARTE CORRIGIDA - ENVIO DA IMAGEM
+        // =========================================
         const form = new FormData();
+        
+        // 1. Adiciona o embed como JSON
         form.append('payload_json', JSON.stringify(payload));
 
-        // Converter imagem base64 para buffer
-        try {
-            const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
-            form.append('file', imageBuffer, {
-                filename: `nexus-dg-${tamer.trim()}-${Date.now()}.png`,
-                contentType: 'image/png'
-            });
-        } catch (imageError) {
-            console.error('Erro ao processar imagem:', imageError);
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Erro ao processar a imagem' })
-            };
+        // 2. Se tiver imagem, adiciona como arquivo
+        if (image) {
+            try {
+                // Remove o prefixo "data:image/png;base64," se existir
+                const base64Data = image.includes('base64,') 
+                    ? image.split('base64,')[1] 
+                    : image;
+                
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                
+                // 🔥 CORREÇÃO: Adiciona o arquivo com os parâmetros corretos
+                form.append('file', imageBuffer, {
+                    filename: `nexus-dg-${tamer.trim()}-${Date.now()}.png`,
+                    contentType: 'image/png'
+                });
+                
+                console.log('📸 Imagem adicionada ao FormData. Tamanho:', imageBuffer.length);
+            } catch (imageError) {
+                console.error('Erro ao processar imagem:', imageError);
+                // Continua mesmo sem a imagem
+            }
         }
 
-        // Enviar para o Discord
-        console.log('Enviando para o Discord...');
+        // 3. Envia para o Discord
+        console.log('📤 Enviando para o Discord...');
+        console.log('📊 Dados:', { tamer, completed, total });
+        
         const response = await fetch(webhookURL, {
             method: 'POST',
             body: form,
@@ -156,7 +153,7 @@ exports.handler = async function(event, context) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Erro no Discord:', response.status, errorText);
+            console.error('❌ Erro no Discord:', response.status, errorText);
             
             return {
                 statusCode: response.status,
@@ -179,7 +176,7 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error('Erro na função:', error);
+        console.error('❌ Erro na função:', error);
         return {
             statusCode: 500,
             headers,
