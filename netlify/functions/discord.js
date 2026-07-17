@@ -113,33 +113,35 @@ exports.handler = async function(event, context) {
         // =========================================
         // 🔥 PARTE CORRIGIDA - ENVIO DA IMAGEM
         // =========================================
-        const form = new FormData();
-        
-        // 1. Adiciona o embed como JSON
-        form.append('payload_json', JSON.stringify(payload));
-
-        // 2. Se tiver imagem, adiciona como arquivo
-        if (image) {
-            try {
-                // Remove o prefixo "data:image/png;base64," se existir
-                const base64Data = image.includes('base64,') 
-                    ? image.split('base64,')[1] 
-                    : image;
-                
-                const imageBuffer = Buffer.from(base64Data, 'base64');
-                
-                // 🔥 CORREÇÃO: Adiciona o arquivo com os parâmetros corretos
-                form.append('file', imageBuffer, {
-                    filename: `nexus-dg-${tamer.trim()}-${Date.now()}.png`,
-                    contentType: 'image/png'
-                });
-                
-                console.log('📸 Imagem adicionada ao FormData. Tamanho:', imageBuffer.length);
-            } catch (imageError) {
-                console.error('Erro ao processar imagem:', imageError);
-                // Continua mesmo sem a imagem
-            }
+// 🔥 PARTE CORRIGIDA PARA ENVIAR IMAGEM
+if (image) {
+    try {
+        // Remove o prefixo "data:image/png;base64," se existir
+        let base64Data = image;
+        if (image.includes('base64,')) {
+            base64Data = image.split('base64,')[1];
         }
+        
+        // 🔥 CRIA O BUFFER CORRETAMENTE
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // 🔥 VERIFICA SE O BUFFER NÃO ESTÁ VAZIO
+        if (imageBuffer.length < 100) {
+            console.warn('⚠️ Buffer da imagem muito pequeno:', imageBuffer.length);
+        } else {
+            console.log('📸 Tamanho da imagem:', imageBuffer.length, 'bytes');
+            
+            // 🔥 ADICIONA AO FORMDATA
+            form.append('file', imageBuffer, {
+                filename: `nexus-dg-${tamer.trim()}-${Date.now()}.png`,
+                contentType: 'image/png'
+            });
+        }
+    } catch (imageError) {
+        console.error('❌ Erro ao processar imagem:', imageError);
+        // Continua mesmo sem imagem
+    }
+}
 
         // 3. Envia para o Discord
         console.log('📤 Enviando para o Discord...');
