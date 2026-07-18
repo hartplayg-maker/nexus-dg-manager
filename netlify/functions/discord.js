@@ -27,9 +27,12 @@ exports.handler = async function(event, context) {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome do Tamer é obrigatório' }) };
         }
 
-        if (!selected || selected.length === 0) {
-            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Selecione pelo menos uma DG' }) };
-        }
+// ✅ AGORA ACEITA ZERO DGS
+// Remove essa validação ou deixa assim:
+if (!selected) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Dados inválidos' }) };
+}
+// selected pode ser um array vazio, tudo bem!
 
         const webhookURL = process.env.DISCORD_WEBHOOK_URL;
         if (!webhookURL) {
