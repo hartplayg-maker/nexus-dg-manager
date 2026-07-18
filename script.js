@@ -143,11 +143,7 @@ function validateForm() {
         DOM.tamer.focus();
         return false;
     }
-    const checked = document.querySelectorAll('.dg-item input[type="checkbox"]:checked');
-    if (checked.length === 0) {
-        showMessage('⚠️ Selecione pelo menos uma DG concluída.', 'error');
-        return false;
-    }
+    // ✅ AGORA PERMITE ENVIAR SEM NENHUMA DG SELECIONADA
     return true;
 }
 
